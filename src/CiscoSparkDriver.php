@@ -202,7 +202,7 @@ class CiscoSparkDriver extends HttpDriver
 
             $response = $this->http->get(self::API_ENDPOINT.'attachment/actions/'.$this->event->get('id'), [], $this->getHeaders());
 
-            $payload['attachmentActionData'] = json_decode($response->getContent());
+            $payload['attachmentActionData'] = json_decode($response->getContent(), true);
 
             $driverEvent = new GenericEvent($payload);
             $driverEvent->setName('attachmentActions:created');
