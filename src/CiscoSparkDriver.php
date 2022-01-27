@@ -2,6 +2,7 @@
 
 namespace BotMan\Drivers\CiscoSpark;
 
+use BotMan\BotMan\Drivers\Events\GenericEvent;
 use BotMan\BotMan\Users\User;
 use Illuminate\Support\Collection;
 use BotMan\BotMan\Drivers\HttpDriver;
@@ -71,17 +72,22 @@ class CiscoSparkDriver extends HttpDriver
      */
     public function getMessages()
     {
-        $this->getBotId();
+        if ($this->payload->get('resource') === 'messages') {
+            $this->getBotId();
 
-        $messageContent = $this->getMessageContent($this->event->get('id'));
+            $messageContent = $this->getMessageContent($this->event->get('id'));
 
-        $message = new IncomingMessage($messageContent->text, $messageContent->roomId, $messageContent->personId, $messageContent);
+            $message = new IncomingMessage($messageContent->text, $messageContent->roomId, $messageContent->personId, $messageContent);
 
-        if ($this->getBotId() === $messageContent->personId) {
-            $message->setIsFromBot(true);
+            if ($this->getBotId() === $messageContent->personId) {
+                $message->setIsFromBot(true);
+            }
+
+            return [$message];
         }
 
-        return [$message];
+        return null;
+
     }
 
     /**
@@ -186,5 +192,24 @@ class CiscoSparkDriver extends HttpDriver
         }
 
         return $this->botId;
+    }
+
+    public function hasMatchingEvent()
+    {
+        if($this->payload->get('resource') === 'attachmentActions' && $this->payload->get('event') === 'created') {
+
+            $payload = $this->payload->get('data');
+
+            $response = $this->http->get(self::API_ENDPOINT.'attachment/actions/'.$this->event->get('id'), [], $this->getHeaders());
+
+            $payload['attachmentActionData'] = json_decode($response->getContent());
+
+            $driverEvent = new GenericEvent($payload);
+            $driverEvent->setName('attachmentActions:created');
+
+            return $driverEvent;
+        }
+
+        return false;
     }
 }
